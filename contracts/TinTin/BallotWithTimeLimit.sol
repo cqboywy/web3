@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract Ballot2 {
+contract BallotWithTimeLimit {
     struct Voter {
         uint256 weight;
         bool voted;
@@ -17,11 +17,17 @@ contract Ballot2 {
     address public chairperson;
     mapping(address => Voter) public voters;
     Proposal[] public proposals;
+    // 设置投票的开始时间和结束时间
+    uint256 public startTime;
+    uint256 public endTime;
     
 
-    constructor(bytes32[] memory proposalNames) {
+    constructor(bytes32[] memory proposalNames, uint256 _startTime, uint256 _endTime) {
+        require(_startTime < _endTime, "Start time must be before end time");
         chairperson = msg.sender;
         voters[chairperson].weight = 1;
+        startTime = _startTime;
+        endTime = _endTime;
 
         for (uint256 i = 0; i < proposalNames.length; i++) {
             proposals.push(Proposal({name: proposalNames[i], voteCount: 0}));
@@ -60,6 +66,7 @@ contract Ballot2 {
     }
 
     function vote(uint256 proposal) external {
+        require(block.timestamp >= startTime && block.timestamp <= endTime, "Voting is not allowed at this time");
         Voter storage sender = voters[msg.sender];
         require(sender.weight != 0, "Has no right to vote.");
         require(!sender.voted, "Already voted.");
@@ -80,5 +87,12 @@ contract Ballot2 {
 
     function winnerName() external view returns (bytes32 winnerName_) {
         winnerName_ = proposals[winningProposal()].name;
+    }
+
+    function setVoterWeight(address voter, uint256 weight) external {
+        require(msg.sender == chairperson, "Only chairperson can set voter weight.");
+        require(block.timestamp >= startTime && block.timestamp <= endTime, "Setting voter weight is not allowed at this time");
+
+        voters[voter].weight = weight;
     }
 }
